@@ -417,7 +417,7 @@ body {
 
       updateWeather () {
         const url =
-          'http://api.openweathermap.org/data/2.5/forecast?q=Vancouver,ca&appid=31646850814d65066e507a61f50c92c6&units=metric'
+          'https://api.openweathermap.org/data/2.5/forecast?q=Vancouver,ca&appid=31646850814d65066e507a61f50c92c6&units=metric'
         fetch(url).then(a => {
           return a.json()
         }).then(weather => {
