@@ -1,0 +1,527 @@
+<title>Tristan Calendar</title>
+
+<link href="https://fonts.googleapis.com/css?family=IBM+Plex+Mono|IBM+Plex+Sans" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.21.0/moment-with-locales.js" integrity="sha256-RFDuBhL4pHC0xMd8rN3ER2spt4JO32FSgtkD/rBeUx0=" crossorigin="anonymous"></script>
+<link rel="import" href="https://cdn.rawgit.com/download/polymer-cdn/2.3.1/lib/polymer/polymer.html">
+
+<main-app></main-app>
+
+<style>
+body {
+  display: flex;
+  margin: 0;
+}
+</style>
+
+<dom-module id="main-app">
+  <template>
+    <style>
+      :host {
+        font-family: 'IBM Plex Sans', 'Open Sans', 'Noto Sans', sans-serif;
+        display: flex;
+        flex-direction: column;
+        flex-grow: 1;
+        padding: 20px;
+        height: 100vh;
+        box-sizing: border-box;
+      }
+      pre {
+        font-family: 'IBM Plex Mono', monospace;
+      }
+      button {
+        border: 1px solid #e0e0e0;
+        background-color: white;
+        border-radius: 4px;
+        padding: 5px;
+        cursor: pointer;
+      }
+      table, tr, td, th {
+        border-collapse: collapse;
+      }
+      td {
+        border: #e0e0e0 1px solid;
+        vertical-align: top;
+      }
+      .week {
+        flex-grow: 1;
+        table-layout: fixed;
+        width: 100%;
+        height: 100%;
+      }
+      .head {
+        padding: 5px 16px;
+        align-items: center;
+        flex-shrink: 0;
+      }
+      .head pre {
+        white-space: pre-wrap;
+        text-align: right;
+      }
+      .head * {
+        margin: 0px 0;
+      }
+      .right {
+        float: right;
+      }
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .header h2 {
+        display: inline-block;
+      }
+      .event {
+        background-color: rgb(3, 155, 229);
+        color: white;
+        border-radius: 4px;
+        padding: 5px;
+        width: 100%;
+        box-sizing: border-box;
+        box-shadow: 0 0 4px white;
+        flex-shrink: 0;
+      }
+      .event > * {
+        margin: 0;
+        margin-top: 5px;
+      }
+      .event > *:first-child {
+        margin: 0;
+      }
+      .event > p {
+        text-overflow: ellipsis;
+        overflow: hidden;
+      }
+      .secondary {
+        opacity: 0.8;
+      }
+      .row {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+      }
+      .tasks {
+        margin: 5px;
+      }
+      .events {
+        position: relative;
+        flex-grow: 1;
+        margin: 5px;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+      }
+      tr.hundred td {
+        height: 100%;
+      }
+      .spacer {
+        margin-top: 5px;
+      }
+      .weather {
+        font-size: 18px;
+      }
+      .task {
+        background-color: #689F38;
+      }
+      .task[completed] {
+        text-decoration: line-through;
+      }
+      .task[completed] p {
+        display: none;
+      }
+    </style>
+
+    <table class="week">
+      <tr>
+        <th colspan="5">
+          <div class="header">
+            <h2>[[month]]</h2>
+
+            <pre class="weather">[[getWeatherDay(today, weather, 1)]]</pre>
+
+            <span class="right">
+              <template is="dom-if" if="[[!signedIn]]">
+                <button id="authorize" on-click="handleAuthClick">Authorize</button>
+              </template>
+              <template is="dom-if" if="[[signedIn]]">
+                <button id="signout" on-click="handleSignoutClick">Sign Out</button>
+              </template>
+            </span>
+          </div>
+        </th>
+      </tr>
+
+      <tr>
+        <template is="dom-repeat" items="[[days]]">
+          <td>
+            <div class="head row">
+              <div>
+                <p>[[item.dayOfWeek]]</p>
+                <h1>[[item.day]]</h1>
+              </div>
+              <pre>[[getWeatherDay(today, weather)]]</pre>
+            </div>
+          </td>
+        </template>
+      </tr>
+
+      <tr>
+        <template is="dom-repeat" items="[[days]]">
+          <td>
+            <div class="tasks">
+              <template is="dom-repeat" items="[[dayTasks(item.date, tasks)]]">
+                <div class="event task" completed$="[[completed(item)]]">
+                  <h3>[[item.title]]</h3>
+                  <template is="dom-if" if="[[item.notes]]">
+                    <p>[[item.notes]]</p>
+                  </template>
+                </div>
+              </template>
+            </div>
+          </td>
+        </template>
+      </tr>
+
+      <tr class="hundred">
+        <template is="dom-repeat" items="[[days]]">
+          <td>
+            <div class="events">
+              <template is="dom-repeat" items="[[dayEvents(item.date, events)]]">
+                <div class="spacer" style$="[[spacerStyle(item, events)]]"></div>
+                <div class="event">
+                  <p>[[time(item.start.dateTime)]] - [[time(item.end.dateTime)]]</p>
+                  <h3>[[item.summary]]</h3>
+                  <template is="dom-if" if="[[item.location]]">
+                    <p>[[item.location]]</p>
+                  </template>
+                  <pre>[[getWeather(item.start.dateTime, weather)]]</pre>
+                </div>
+              </template>
+              <div class="spacer" style$="[[endSpacerStyle(item.date, events)]]"></div>
+            </div>
+          </td>
+        </template>
+      </tr>
+    </table>
+  </template>
+  <script>
+    const numDays = 5;
+
+    Array.prototype.unique = function() {
+      return this.filter(function (value, index, self) {
+        return self.indexOf(value) === index;
+      });
+    }
+
+    class MainApp extends Polymer.Element {
+      static get is () { return 'main-app' }
+
+      static get properties () {
+        return {
+          signedIn: {value: false}
+        }
+      }
+
+      static get observers () {
+        return [
+          'listUpcomingEvents(signedIn, today)'
+        ]
+      }
+
+      connectedCallback () {
+        super.connectedCallback()
+
+        this.tick()
+        setInterval(() => this.tick(), 5 * 60 * 1000)
+      }
+
+      completed (task) {
+        return task.status === 'completed'
+      }
+
+      tick () {
+        this.today = moment().startOf('day')
+      }
+
+      time (time) {
+        if (!time) {
+          return
+        }
+
+        return moment(time).format('HH:mm')
+      }
+
+      tod (date) {
+        const time = moment(date)
+        const start = time.clone().startOf('day')
+        return time.unix() - start.unix()
+      }
+
+      start () {
+        return this.events.map(a => this.tod(a.start.dateTime)).reduce((a, b) => {
+          return a < b && a ? a : b
+        })
+      }
+
+      end () {
+        return this.events.map(a => this.tod(a.end.dateTime)).reduce((a, b) => {
+          return a > b && a ? a : b
+        })
+      }
+
+      eventStyle (event) {
+        const start = this.start()
+        const end = this.end()
+        const time = this.tod(event.start.dateTime)
+        const pos = (time-start)/(end-start)*100
+        return 'position: absolute; top: ' + pos.toFixed(2) + '%'
+      }
+
+      endSpacerStyle (day, events) {
+        if (!events) {
+          return
+        }
+
+        let eventBefore
+        events.forEach((event) => {
+          if (moment(event.end.dateTime).startOf('day').isSame(day)) {
+            eventBefore = event
+          }
+        })
+
+        const start = this.start()
+        const end = this.end()
+        const before = eventBefore ? this.tod(eventBefore.end.dateTime) : end
+        const basis = (end - before) / (end - start) * 100
+        return 'flex-basis: '+basis.toFixed(1)+'%'
+      }
+
+      eventBefore(event) {
+        const index = this.events.indexOf(event)
+        if (index > 0) {
+          const nevent = this.events[index-1]
+          const estart = moment(event.start.dateTime).startOf('day')
+          const nestart = moment(nevent.start.dateTime).startOf('day')
+          if (estart.isSame(nestart)) {
+            return nevent
+          }
+        }
+      }
+
+      spacerStyle (event, events) {
+        if (!events) {
+          return
+        }
+
+        const start = this.start()
+        const end = this.end()
+        const time = this.tod(event.start.dateTime)
+        const eventBefore = this.eventBefore(event)
+        const before = eventBefore ? this.tod(eventBefore.end.dateTime) : start
+        const basis = (time - before) / (end - start) * 100
+        return 'flex-basis: '+basis.toFixed(1)+'%'
+      }
+
+      initClient() {
+        gapi.client.init({
+          apiKey: API_KEY,
+          clientId: CLIENT_ID,
+          discoveryDocs: DISCOVERY_DOCS,
+          scope: SCOPES
+        }).then(() => {
+          // Listen for sign-in state changes.
+          gapi.auth2.getAuthInstance().isSignedIn.listen(this.updateSigninStatus.bind(this));
+
+          // Handle the initial sign-in state.
+          this.updateSigninStatus(gapi.auth2.getAuthInstance().isSignedIn.get());
+        });
+      }
+
+      updateSigninStatus(signedIn) {
+        this.signedIn = signedIn
+      }
+
+      handleAuthClick(event) {
+        gapi.auth2.getAuthInstance().signIn();
+      }
+
+      handleSignoutClick(event) {
+        gapi.auth2.getAuthInstance().signOut();
+      }
+
+      getWeather(date, weather) {
+        if (!weather || !weather.list) {
+          return
+        }
+
+        const target = moment(date).unix()
+
+        let closest
+        weather.list.forEach(point => {
+          const pointStart = point.dt
+          const pointEnd = moment.unix(point.dt).add(3, 'hour').unix()
+          if (point.dt <= target && target <= pointEnd) {
+            closest = point
+          }
+        })
+
+        if (!closest) {
+          return
+        }
+
+        return closest.main.temp.toFixed(1) + '°C - ' + closest.weather.map(a => a.description).join('')
+      }
+
+      getWeatherDay(date, weather, oneLine) {
+        if (!weather || !weather.list) {
+          return
+        }
+
+        let max = -100
+        let min = 100
+        let found = false
+        let descriptions = []
+
+        weather.list.forEach(point => {
+          if (moment.unix(point.dt).startOf('day').isSame(date)) {
+            found = true
+            if (point.main.temp_max > max) {
+              max = point.main.temp_max
+            }
+            if (point.main.temp_min < min) {
+              min = point.main.temp_min
+            }
+            descriptions = descriptions.concat(point.weather.map(a => a.description))
+          }
+        })
+
+        if (!found) {
+          return
+        }
+
+        const delim = oneLine ? ', ' : '\n'
+
+        return min.toFixed(1) + '°C - ' + max.toFixed(1) + '°C' + delim +
+          descriptions.unique().join(delim)
+      }
+
+      dayEvents (date, events) {
+        if (!events) {
+          return
+        }
+
+        return events.filter((event) => {
+          return moment(event.start.dateTime).startOf('day').isSame(date);
+        })
+      }
+
+      updateWeather () {
+        const url =
+          'http://api.openweathermap.org/data/2.5/forecast?q=Vancouver,ca&appid=31646850814d65066e507a61f50c92c6&units=metric'
+        fetch(url).then(a => {
+          return a.json()
+        }).then(weather => {
+          this.weather = weather
+        })
+      }
+
+      dayTasks (date, tasks) {
+        if (!tasks) {
+          return
+        }
+
+        const utcDay = date.clone().utc().startOf('day')
+
+        return tasks.filter((task) => {
+          const taskDue = moment(task.due).utc().startOf('day')
+          return taskDue.isSame(utcDay)
+        })
+      }
+
+      listTasks () {
+        const start = moment().startOf('day');
+        const end = start.clone().add(numDays, 'days');
+
+        gapi.client.tasks.tasklists.list().then(resp => {
+          const lists = resp.result.items.map(list => {
+            return gapi.client.tasks.tasks.list({
+              tasklist: list.id,
+              dueMin: start.toISOString(),
+              dueMax: end.toISOString(),
+            }).then(a => a.result.items)
+          })
+
+          return Promise.all(lists)
+        }).then((lists) => {
+          const tasks = []
+          lists.forEach(list => {
+            list.forEach(task => {
+              tasks.push(task)
+            })
+          })
+          console.log(tasks)
+          this.tasks = tasks
+        })
+      }
+
+      listUpcomingEvents (signedIn) {
+        if (!signedIn) {
+          return
+        }
+
+        this.updateWeather()
+        this.listTasks()
+
+        const start = moment().startOf('day');
+        const end = start.clone().add(numDays, 'days');
+        const days = [];
+        this.month = start.format('MMMM Y')
+        for (let i=0; i<numDays; i++) {
+          const now = start.clone().add(i, 'days');
+          days.push({
+            dayOfWeek: now.format('ddd'),
+            day: now.format('D'),
+            date: now,
+          })
+        }
+        this.days = days
+        gapi.client.calendar.events.list({
+          'calendarId': 'primary',
+          'timeMin': start.toISOString(),
+          'timeMax': end.toISOString(),
+          'showDeleted': false,
+          'singleEvents': true,
+          'maxResults': 100,
+          'orderBy': 'startTime'
+        }).then((response) => {
+          this.events = response.result.items;
+        });
+      }
+    }
+    customElements.define(MainApp.is, MainApp)
+  </script>
+</dom-module>
+
+<script>
+// Client ID and API key from the Developer Console
+var CLIENT_ID = '82527149933-aljr5f591mp1v3hffj0pgsaq6kaef8ii.apps.googleusercontent.com';
+var API_KEY = 'AIzaSyCtcPqGyT-LkRLoXSwlRRz1A8vfvYH07Iw';
+
+var DISCOVERY_DOCS = [
+  "https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest",
+  "https://www.googleapis.com/discovery/v1/apis/tasks/v1/rest"
+]
+
+var SCOPES = "https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/tasks.readonly";
+
+function handleClientLoad() {
+  const mainApp = document.querySelector('main-app')
+  gapi.load('client:auth2', mainApp.initClient.bind(mainApp))
+}
+
+</script>
+
+<script async defer src="https://apis.google.com/js/api.js"
+                    onload="this.onload=function(){};handleClientLoad()"
+                    onreadystatechange="if (this.readyState === 'complete') this.onload()">
+</script>
