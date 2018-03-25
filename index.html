@@ -1,8 +1,10 @@
 <title>Tristan Calendar</title>
 
 <link href="https://fonts.googleapis.com/css?family=IBM+Plex+Mono|IBM+Plex+Sans" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.21.0/moment-with-locales.js" integrity="sha256-RFDuBhL4pHC0xMd8rN3ER2spt4JO32FSgtkD/rBeUx0=" crossorigin="anonymous"></script>
 <link rel="import" href="https://cdn.rawgit.com/download/polymer-cdn/2.3.1/lib/polymer/polymer.html">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.21.0/moment-with-locales.js" integrity="sha256-RFDuBhL4pHC0xMd8rN3ER2spt4JO32FSgtkD/rBeUx0=" crossorigin="anonymous"></script>
+<script src="https://cdn.rawgit.com/andrewplummer/Sugar/2.0.4/dist/sugar.js"></script>
 
 <main-app></main-app>
 
@@ -101,8 +103,11 @@ body {
         align-items: baseline;
       }
       .tasks {
-        margin: 5px;
+        margin: 0 5px;
       }
+      .tasks > * {
+        margin: 5px 0;
+			}
       .events {
         position: relative;
         flex-grow: 1;
@@ -120,6 +125,9 @@ body {
       .weather {
         font-size: 18px;
       }
+      .package {
+				background-color: #ff9900;
+			}
       .task {
         background-color: #689F38;
       }
@@ -174,6 +182,15 @@ body {
                   <h3>[[item.title]]</h3>
                   <template is="dom-if" if="[[item.notes]]">
                     <p>[[item.notes]]</p>
+                  </template>
+                </div>
+              </template>
+
+              <template is="dom-repeat" items="[[dayPackages(item.date, packages)]]">
+                <div class="event package">
+                  <h3>[[item.human]]</h3>
+                  <template is="dom-if" if="[[item.item]]">
+                    <p>[[item.item]]</p>
                   </template>
                 </div>
               </template>
@@ -464,6 +481,80 @@ body {
         })
       }
 
+      dayPackages (date, packages) {
+        if (!packages) {
+          return
+        }
+
+        return packages.filter((a) => {
+          return moment(a.date).startOf('day').isSame(date);
+        })
+      }
+
+      loadAmazonTracking(url) {
+        return fetch('https://cors-anywhere.herokuapp.com/'+url).then(a => a.text()).then(body => {
+          const matches = body.match(/(Arriving|Delivered) ([a-z A-Z0-9]*)/)
+          if (!matches) {
+            return
+          }
+          const time = matches[2].replace(/by/g, 'at')
+          return {
+            date: Sugar.Date.create(time),
+            human: matches[0],
+					}
+				})
+      }
+
+      listPackages () {
+        const seenURLs = {}
+
+        gapi.client.gmail.users.messages.list({
+          maxResults: 10,
+          userId: 'me',
+          q: 'track package shipped'
+        }).then(resp => {
+          const messages = resp.result.messages
+          const packages = messages.map(message => {
+						return gapi.client.gmail.users.messages.get({
+							userId: 'me',
+							id: message.id,
+						}).then(message => {
+							const subject = message.result.payload.headers.filter(a => a.name === 'Subject')[0].value
+							const part = message.result.payload.parts.filter(a => a.mimeType === 'text/plain')[0]
+							const body = atob(part.body.data.replace(/-/g, '+').replace(/_/g, '/'))
+							const matches = body.match(/Track your package at (https:\S*)/)
+              if (!matches) {
+                console.log('failed to find match in', subject)
+                return
+							}
+							const url = matches[1]
+
+              if (seenURLs[url]) {
+                return
+              }
+              seenURLs[url] = true
+
+							return this.loadAmazonTracking(url).then(a => {
+								if (!a) {
+									return
+								}
+								const itemMatch = subject.match(/"(.*)"/) || subject.match(/order of (.*) has shipped/)
+								return {
+									...a,
+									subject,
+									item: itemMatch && itemMatch[1],
+								}
+							})
+						})
+					})
+          Promise.all(packages).then(packages => {
+            packages = packages.filter(a => a)
+						console.log('packages', packages)
+            this.packages = packages
+					})
+        })
+      }
+
       listUpcomingEvents (signedIn) {
         if (!signedIn) {
           return
@@ -471,6 +562,7 @@ body {
 
         this.updateWeather()
         this.listTasks()
+        this.listPackages()
 
         const start = moment().startOf('day');
         const end = start.clone().add(numDays, 'days');
@@ -509,10 +601,11 @@ var API_KEY = 'AIzaSyCtcPqGyT-LkRLoXSwlRRz1A8vfvYH07Iw';
 
 var DISCOVERY_DOCS = [
   "https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest",
-  "https://www.googleapis.com/discovery/v1/apis/tasks/v1/rest"
+  "https://www.googleapis.com/discovery/v1/apis/tasks/v1/rest",
+  "https://www.googleapis.com/discovery/v1/apis/gmail/v1/rest"
 ]
 
-var SCOPES = "https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/tasks.readonly";
+var SCOPES = "https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/tasks.readonly https://www.googleapis.com/auth/gmail.readonly";
 
 function handleClientLoad() {
   const mainApp = document.querySelector('main-app')
