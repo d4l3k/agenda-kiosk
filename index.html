@@ -147,7 +147,9 @@ body {
 
             <pre class="weather">[[getWeatherDay(today, weather, 1)]]</pre>
 
+
             <span class="right">
+              <h2>[[currentTime]]&nbsp;</h2>
               <template is="dom-if" if="[[!signedIn]]">
                 <button id="authorize" on-click="handleAuthClick">Authorize</button>
               </template>

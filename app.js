@@ -28,6 +28,10 @@ class MainApp extends Polymer.Element {
 
     this.tick()
     setInterval(() => this.tick(), 5 * 60 * 1000)
+
+    setInterval(() => {
+      this.currentTime = moment().format('HH:mm:ss')
+    }, 200)
   }
 
   completed (task) {
