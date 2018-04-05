@@ -26,22 +26,38 @@ body {
         padding: 20px;
         height: 100vh;
         box-sizing: border-box;
+        --background-color: white;
+        --text-color: black;
+        --border-color: #e0e0e0;
+
+        color: var(--text-color);
+        background-color: var(--background-color);
+      }
+      :host([night]) {
+        --background-color: #111;
+        --text-color: white;
+        --border-color: #222;
+
+        color: var(--text-color);
+        background-color: var(--background-color);
       }
       pre {
         font-family: 'IBM Plex Mono', monospace;
       }
       button {
-        border: 1px solid #e0e0e0;
-        background-color: white;
+        border: 1px solid var(--border-color);
+        color: var(--text-color);
+        background-color: var(--background-color);
         border-radius: 4px;
         padding: 5px;
         cursor: pointer;
       }
       table, tr, td, th {
         border-collapse: collapse;
+        color: var(--text-color);
       }
       td {
-        border: #e0e0e0 1px solid;
+        border: var(--border-color) 1px solid;
         vertical-align: top;
       }
       .week {
@@ -80,7 +96,7 @@ body {
         padding: 5px;
         width: 100%;
         box-sizing: border-box;
-        box-shadow: 0 0 4px white;
+        box-shadow: 0 0 4px var(--background-color);
         flex-shrink: 0;
       }
       .event > * {
@@ -169,7 +185,7 @@ body {
                 <p>[[item.dayOfWeek]]</p>
                 <h1>[[item.day]]</h1>
               </div>
-              <pre>[[getWeatherDay(today, weather)]]</pre>
+              <pre>[[getWeatherDay(item.date, weather)]]</pre>
             </div>
           </td>
         </template>

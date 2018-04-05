@@ -14,7 +14,8 @@ class MainApp extends Polymer.Element {
 
   static get properties () {
     return {
-      signedIn: {value: false}
+      signedIn: {value: false},
+      night: {computed: 'computeNight(currentTime)', reflectToAttribute: true}
     }
   }
 
@@ -23,8 +24,7 @@ class MainApp extends Polymer.Element {
   }
 
   connectedCallback () {
-    super
-        .connectedCallback()
+    super .connectedCallback();
 
     this.tick()
     setInterval(() => this.tick(), 5 * 60 * 1000)
@@ -32,6 +32,11 @@ class MainApp extends Polymer.Element {
     setInterval(() => {
       this.currentTime = moment().format('HH:mm:ss')
     }, 200)
+  }
+
+  computeNight () {
+    const hour = moment().hour()
+    return hour <= 5 || hour >= 18
   }
 
   completed (task) {
