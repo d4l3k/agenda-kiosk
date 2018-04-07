@@ -24,11 +24,13 @@ body {
         flex-direction: column;
         flex-grow: 1;
         padding: 20px;
+        padding-top: 0;
         height: 100vh;
         box-sizing: border-box;
         --background-color: white;
         --text-color: black;
         --border-color: #e0e0e0;
+        overflow: hidden;
 
         color: var(--text-color);
         background-color: var(--background-color);
@@ -40,6 +42,9 @@ body {
 
         color: var(--text-color);
         background-color: var(--background-color);
+      }
+      h2 {
+        font-size: 2em;
       }
       pre {
         font-family: 'IBM Plex Mono', monospace;
@@ -139,7 +144,7 @@ body {
         margin-top: 5px;
       }
       .weather {
-        font-size: 18px;
+        font-size: 1.5em;
       }
       .package {
         background-color: #ff9900;
@@ -152,6 +157,18 @@ body {
       }
       .task[completed] p {
         display: none;
+      }
+      .now {
+        border-top: 1px solid red;
+        margin: 0 8px;
+        color: red;
+        text-align: right;
+        position: absolute;
+        left: 0;
+        right: 0;
+      }
+      .events-td {
+        position: relative;
       }
     </style>
 
@@ -219,7 +236,10 @@ body {
 
       <tr class="hundred">
         <template is="dom-repeat" items="[[days]]">
-          <td>
+          <td class="events-td">
+            <template is="dom-if" if="[[isToday(item)]]">
+              <div class="now" style$="[[nowStyle(currentTime)]]">[[currentTime]]</div>
+            </template>
             <div class="events">
               <template is="dom-repeat" items="[[dayEvents(item.date, events)]]">
                 <div class="spacer" style$="[[spacerStyle(item, events)]]"></div>

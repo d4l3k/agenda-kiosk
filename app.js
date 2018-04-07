@@ -24,7 +24,9 @@ class MainApp extends Polymer.Element {
   }
 
   connectedCallback () {
-    super .connectedCallback();
+    super.connectedCallback()
+
+    window.app = this
 
     this.tick()
     setInterval(() => this.tick(), 5 * 60 * 1000)
@@ -61,15 +63,31 @@ class MainApp extends Polymer.Element {
     return time.unix() - start.unix()
   }
 
+  nowStyle () {
+    const start = this.start()
+    const end = this.end()
+    const top = (this.tod() - start) / (end - start) * 100
+    return `top: ${top}%`
+  }
+
   start () {
-    return this.events.map(a => this.tod(a.start.dateTime)).reduce((a, b) => {
+    if (!this.events) {
+      return 1
+    }
+    const start = this.events.map(a => this.tod(a.start.dateTime)).reduce((a, b) => {
       return a < b && a ? a : b
     })
+
+    return Math.min(this.tod(), start)
   }
 
   end () {
-    return this.events.map(a => this.tod(a.end.dateTime))
+    if (!this.events) {
+      return 1
+    }
+    const end = this.events.map(a => this.tod(a.end.dateTime))
         .reduce((a, b) => { return a > b && a ? a : b })
+    return Math.max(this.tod(), end)
   }
 
   eventStyle (event) {
@@ -98,6 +116,10 @@ class MainApp extends Polymer.Element {
     const before = eventBefore ? this.tod(eventBefore.end.dateTime) : end
     const basis = (end - before) / (end - start) * 100
     return 'flex-basis: ' + basis.toFixed(1) + '%'
+  }
+
+  isToday (day) {
+    return this.days && this.days[0] === day
   }
 
   eventBefore (event) {
@@ -247,8 +269,8 @@ class MainApp extends Polymer.Element {
   }
 
   listTasks () {
-    const start = moment().startOf('day')
-    const end = start.clone().add(numDays, 'days')
+    const start = moment().startOf('day').add(-1, 'days')
+    const end = start.clone().add(numDays+1, 'days')
 
     gapi.client.tasks.tasklists.list().then(resp => {
       console.log(resp)
