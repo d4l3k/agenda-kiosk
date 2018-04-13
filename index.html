@@ -237,9 +237,6 @@ body {
       <tr class="hundred">
         <template is="dom-repeat" items="[[days]]">
           <td class="events-td">
-            <template is="dom-if" if="[[isToday(item)]]">
-              <div class="now" style$="[[nowStyle(currentTime)]]">[[currentTime]]</div>
-            </template>
             <div class="events">
               <template is="dom-repeat" items="[[dayEvents(item.date, events)]]">
                 <div class="spacer" style$="[[spacerStyle(item, events)]]"></div>
@@ -254,6 +251,10 @@ body {
               </template>
               <div class="spacer" style$="[[endSpacerStyle(item.date, events)]]"></div>
             </div>
+
+            <template is="dom-if" if="[[isToday(item)]]">
+              <div class="now" style$="[[nowStyle(currentTime)]]">[[currentTime]]</div>
+            </template>
           </td>
         </template>
       </tr>
