@@ -193,6 +193,9 @@ class MainApp extends Polymer.Element {
       if (point.dt <= target && target <= pointEnd) {
         closest = point
       }
+      if (!closest && point.dt > target) {
+        closest = point
+      }
     })
 
     if (!closest) {
